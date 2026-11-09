@@ -1,0 +1,51 @@
+name: Despertador stories @motib.hub
+
+# El reloj de GitHub se atrasa: se despierta a las 5:00 y 6:30 ART y espera adentro hasta las 8:30 y 10:30.
+# El código y las placas viven en el repo privado motib-hub/stories-motib; acá solo se copian las del día.
+on:
+  schedule:
+    - cron: "0 8 * * 1-5"    # 5:00 Argentina
+    - cron: "30 9 * * 1-5"   # 6:30 Argentina (por si la primera no arranca)
+  workflow_dispatch:
+    inputs:
+      prueba_fecha:
+        description: "Solo pruebas: fecha del calendario (vacío = día normal)"
+        default: ""
+      prueba_hora:
+        description: "Solo pruebas: hora ART HH:MM"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: despertador
+  cancel-in-progress: false
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: publicas
+      - name: Traer el repo privado (calendario y placas)
+        env:
+          KEY: ${{ secrets.PRIV_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git clone -q git@github.com:motib-hub/stories-motib.git priv
+          for d in priv publicas; do git -C $d config user.name "stories-bot"; git -C $d config user.email "stories-bot@users.noreply.github.com"; done
+      - name: Esperar y publicar
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          PUBLICAS_DIR: ${{ github.workspace }}/publicas
+        run: |
+          cd priv
+          if [ -n "${{ github.event.inputs.prueba_fecha }}" ]; then
+            python3 despertador.py --prueba "${{ github.event.inputs.prueba_fecha }}" "${{ github.event.inputs.prueba_hora }}"
+          else
+            python3 despertador.py
+          fi
