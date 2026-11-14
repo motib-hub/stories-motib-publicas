@@ -4,8 +4,8 @@ name: Despertador stories @motib.hub
 # El código y las placas viven en el repo privado motib-hub/stories-motib; acá solo se copian las del día.
 on:
   schedule:
-    - cron: "0 8 * * 1-5"    # 5:00 Argentina
-    - cron: "30 9 * * 1-5"   # 6:30 Argentina (por si la primera no arranca)
+    - cron: "0 8 * * *"    # 5:00 Argentina
+    - cron: "30 9 * * *"   # 6:30 Argentina (por si la primera no arranca)
   workflow_dispatch:
     inputs:
       prueba_fecha:
