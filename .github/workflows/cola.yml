@@ -1,0 +1,52 @@
+name: Cola de Instagram de clientes
+
+# Lo dispara cron-job.org cada hora en punto de 8 a 20 (Argentina). El horario de GitHub queda de respaldo.
+# El código y las piezas viven en el repo privado motib-hub/cola-instagram; acá solo se copian las imágenes
+# de la pieza que sale (Instagram necesita una dirección pública).
+on:
+  schedule:
+    - cron: "5 11-23 * * *"   # 8:05 a 20:05 Argentina (respaldo)
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: "Solo simular, sin publicar"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cola-instagram
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: publicas
+      - name: Traer la cola (repo privado)
+        env:
+          KEY: ${{ secrets.COLA_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git clone -q git@github.com:motib-hub/cola-instagram.git priv
+          for d in priv publicas; do git -C $d config user.name "cola-bot"; git -C $d config user.email "cola-bot@users.noreply.github.com"; done
+      - name: Publicar lo que toca
+        env:
+          IG_TOKEN_PRINCE: ${{ secrets.IG_TOKEN_PRINCE }}
+          PUBLICAS_DIR: ${{ github.workspace }}/publicas
+        run: |
+          cd priv
+          if [ "${{ github.event.inputs.simular }}" = "true" ]; then python3 publicar_cola.py --simular; else python3 publicar_cola.py; fi
+      - name: Guardar lo publicado
+        if: always()
+        run: |
+          cd priv
+          if [ -n "$(git status --porcelain publicado.json)" ]; then
+            git add publicado.json && git commit -qm "Publicado $(date -u +%F-%H%M)" && git push -q
+          fi
