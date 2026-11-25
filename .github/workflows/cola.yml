@@ -39,6 +39,7 @@ jobs:
       - name: Publicar lo que toca
         env:
           IG_TOKEN_PRINCE: ${{ secrets.IG_TOKEN_PRINCE }}
+          IG_TOKEN_SCALA3: ${{ secrets.IG_TOKEN_PRINCE }}   # mismo usuario del sistema de Motib
           PUBLICAS_DIR: ${{ github.workspace }}/publicas
         run: |
           cd priv
